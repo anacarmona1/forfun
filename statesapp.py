@@ -2,14 +2,14 @@ import random
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 
-st.title("🦅 4th of July - American Delicacies Lunch")
+st.title("4th of July - American delicacies lunch🦅")
 st.write("Enter your name to claim your State *except Florida!")
 
 # 1. Establish connection to your Google Sheet
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# Read the current data from the sheet
-df = conn.read()
+# Read the current data from the sheet (clear cache to get fresh live data)
+df = conn.read(ttl=0)
 
 # Clean up data formatting
 df['Name'] = df['Name'].fillna('').astype(str).str.strip()
@@ -38,17 +38,21 @@ if st.button("Assign Me a State, Except Florida, Arkansas, Alabama, and West Vir
             chosen_index = random.choice(available_rows.index)
             chosen_state = df.loc[chosen_index, 'State']
             
-            # Assign the name to that row in our local copy
+            # Update our local data copy
             df.loc[chosen_index, 'Name'] = user_name
             
-            # Push the updated data back to the Google Sheet live
+            # Push the updated data back to the Google Sheet safely
             conn.update(data=df)
             
             st.success(f"🎉 Congratulations {user_name}! Your assigned state is **{chosen_state}** I'm sorry if it's Florida or Alabama.")
 
 # 3. Live Dashboard of claims
 with st.expander("See current claims"):
-    claimed_df = df[df['Name'] != ""][['Name', 'State']]
+    # Clear cache and re-read to show the absolute latest live data
+    live_df = conn.read(ttl=0)
+    live_df['Name'] = live_df['Name'].fillna('').astype(str).str.strip()
+    claimed_df = live_df[live_df['Name'] != ""][['Name', 'State']]
+    
     if not claimed_df.empty:
         st.dataframe(claimed_df, use_container_width=True, hide_index=True)
     else:
